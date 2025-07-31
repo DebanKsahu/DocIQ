@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     collection_vector_dimension: int
     gemini_model_name: str
     gemini_api_key: str
+    redis_host: str
+    redis_username: str
+    redis_password: str
+    redis_port: int
     model_config = {
         "env_file": ".env"
     }
