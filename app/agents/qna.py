@@ -1,14 +1,17 @@
-from app.database.models.graph_states.qna_agent import QnaAgentInputState, QnaAgentIntermediateState, QnaAgentOutputState, QnaAgentOverallState
-from app.utils.llms import google_gemini
-from langgraph.graph import StateGraph, START, END
-from langchain.retrievers.multi_query import MultiQueryRetriever
+from langgraph.graph import END, START, StateGraph
+
+from app.agents.prompts.qna_agent_prompts import qna_chat_prompt_template
+from app.database.models.graph_states.qna_agent import (
+    QnaAgentInputState,
+    QnaAgentIntermediateState,
+    QnaAgentOutputState,
+    QnaAgentOverallState,
+)
 from app.database.qdrant import create_async_qdrant_client
 from app.utils.embedding_models import google_embedding
-from config import settings
-from app.agents.prompts.qna_agent_prompts import qna_chat_prompt_template
+from app.utils.llms import google_gemini
 from app.utils.utility_functions import UtilityContainer
-
-
+from config import settings
 
 
 async def data_fetch(state: QnaAgentInputState) -> QnaAgentIntermediateState:

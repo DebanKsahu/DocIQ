@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from httpx import AsyncClient
 from pypdf import PdfReader
 from io import BytesIO
@@ -19,7 +19,8 @@ from app.agents.qna import qna_agent
 qna_router = APIRouter()
 
 @qna_router.post("/hackrx/run")
-async def qna_bot(input_data: QnaRequest, http_client: AsyncClient = Depends(DepeendencyContainer.get_httpx_client)):
+async def qna_bot(request: Request, input_data: QnaRequest, http_client: AsyncClient = Depends(DepeendencyContainer.get_httpx_client)):
+    redis_client = request.app.state.redis_client
     response = await http_client.get(input_data.documents)
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Failed to fetch PDF")
@@ -32,30 +33,33 @@ async def qna_bot(input_data: QnaRequest, http_client: AsyncClient = Depends(Dep
     documents = []
     uuids = []
     document_id = UtilityContainer.create_unique_id(blob_url=input_data.documents)
-    for index, chunk in enumerate(text_chunks):
-        new_document = Document(
-            page_content=chunk,
-            metadata = {
-                "doc_id": document_id,
-                "original_chunk": chunk
-            }
+    is_available = await redis_client.get(f"{document_id}")
+    if is_available is None:
+        for index, chunk in enumerate(text_chunks):
+            new_document = Document(
+                page_content=chunk,
+                metadata = {
+                    "doc_id": document_id,
+                    "original_chunk": chunk
+                }
+            )
+            documents.append(new_document)
+            uuids.append(str(uuid4()))
+        embeddings = google_embedding.embed_documents(texts=[page.page_content for page in documents], task_type="RETRIEVAL_DOCUMENT")
+        points = [
+            PointStruct(
+                id=uuids[i],
+                vector=embeddings[i],
+                payload=documents[i].metadata
+            )
+            for i in range(len(documents))
+        ]
+        async_qdrant_client = create_async_qdrant_client()
+        await async_qdrant_client.upsert(
+            collection_name=settings.collection_name,
+            points=points
         )
-        documents.append(new_document)
-        uuids.append(str(uuid4()))
-    embeddings = google_embedding.embed_documents(texts=[page.page_content for page in documents], task_type="RETRIEVAL_DOCUMENT")
-    points = [
-        PointStruct(
-            id=uuids[i],
-            vector=embeddings[i],
-            payload=documents[i].metadata
-        )
-        for i in range(len(documents))
-    ]
-    async_qdrant_client = create_async_qdrant_client()
-    await async_qdrant_client.upsert(
-        collection_name=settings.collection_name,
-        points=points
-    )
+        await redis_client.set(f"{document_id}","True")
     responses = []
     for index,question in enumerate(input_data.questions):
         agent_response = await qna_agent.ainvoke(input=QnaAgentInputState(user_query=question,doc_id=document_id))

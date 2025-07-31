@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
+from app.database.redis import init_redis
 from app.routes.qna_route import qna_router
 
 from app.database.qdrant import create_sync_qdrant_client
@@ -11,7 +12,7 @@ from config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n Lifespan Started \n")
+    app.state.redis_client = init_redis()
     qdrant_client = create_sync_qdrant_client()
     existing_collections = qdrant_client.get_collections().collections
     collections_names = [collection.name for collection in existing_collections]
