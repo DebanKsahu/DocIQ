@@ -16,12 +16,16 @@ from config import settings
 
 async def data_fetch(state: QnaAgentInputState) -> QnaAgentIntermediateState:
     qdrant_client = create_async_qdrant_client()
-    query_vector = google_embedding.embed_query(state.user_query)
-    results = await qdrant_client.search(
-        collection_name=settings.collection_name,
-        query_vector=query_vector,
-        limit=5
-    )
+    multiple_queries = await UtilityContainer.generate_multiple_query(state.user_query,google_gemini)
+    results = []
+    for query in multiple_queries:
+        query_vector = google_embedding.embed_query(query)
+        temp_results = await qdrant_client.search(
+            collection_name=settings.collection_name,
+            query_vector=query_vector,
+            limit=5
+        )
+        results.extend(temp_results)
     original_chunks = []
     for result in results:
         if (result.payload is not None):
