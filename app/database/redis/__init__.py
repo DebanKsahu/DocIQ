@@ -5,7 +5,7 @@ def init_redis():
         host = "localhost",
         port = 6379,
         decode_responses = True,
-        max_connection = 5
+        max_connections = 5
     )
 
     redis_client = redis.Redis(
