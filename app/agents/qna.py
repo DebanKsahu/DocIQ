@@ -9,14 +9,14 @@ from app.database.models.graph_states.qna_agent import (
 )
 from app.database.qdrant import create_async_qdrant_client
 from app.utils.embedding_models import google_embedding
-from app.utils.llms import google_gemini
+from app.utils.llms import google_gemini, google_gemini_output_limit
 from app.utils.utility_functions import UtilityContainer
 from config import settings
 
 
 async def data_fetch(state: QnaAgentInputState) -> QnaAgentIntermediateState:
     qdrant_client = create_async_qdrant_client()
-    multiple_queries = await UtilityContainer.generate_multiple_query(state.user_query,google_gemini)
+    multiple_queries = await UtilityContainer.generate_multiple_query(state.user_query,google_gemini_output_limit)
     results = []
     for query in multiple_queries:
         query_vector = google_embedding.embed_query(query)
