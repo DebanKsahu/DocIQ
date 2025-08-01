@@ -27,10 +27,13 @@ class AgentUtils():
         try:
             result = json.loads(response.content if hasattr(response, "content") else str(response)) # type: ignore
             query_list = [result["query_1"], result["query_2"],user_query]
+            print()
             print(query_list)
+            print()
             return query_list
         except:
             return [user_query]
+        # return [user_query]
 
 class UtilityContainer(
     DocumentUtils,

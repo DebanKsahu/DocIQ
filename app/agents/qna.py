@@ -1,3 +1,4 @@
+import asyncio
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.prompts.qna_agent_prompts import qna_chat_prompt_template
@@ -17,15 +18,26 @@ from config import settings
 async def data_fetch(state: QnaAgentInputState) -> QnaAgentIntermediateState:
     qdrant_client = create_async_qdrant_client()
     multiple_queries = await UtilityContainer.generate_multiple_query(state.user_query,google_gemini_output_limit)
-    results = []
-    for query in multiple_queries:
-        query_vector = google_embedding.embed_query(query)
-        temp_results = await qdrant_client.search(
+    
+
+    query_vectors = [google_embedding.embed_query(query) for query in multiple_queries]
+    
+
+    search_tasks = [
+        qdrant_client.search(
             collection_name=settings.collection_name,
             query_vector=query_vector,
             limit=5
         )
-        results.extend(temp_results)
+        for query_vector in query_vectors
+    ]
+
+    search_results = await asyncio.gather(*search_tasks)
+    
+
+    results = []
+    for batch_result in search_results:
+        results.extend(batch_result)
     original_chunks = []
     for result in results:
         if (result.payload is not None):
